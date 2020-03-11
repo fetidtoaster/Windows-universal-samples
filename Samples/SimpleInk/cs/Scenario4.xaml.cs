@@ -17,7 +17,6 @@ using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
 using Windows.UI.Text.Core;
-using SDKTemplate;
 
 namespace SDKTemplate
 {
@@ -60,11 +59,8 @@ namespace SDKTemplate
                 RecoName.Items.Add("No Recognizer Available");
             }
             RecoName.SelectedIndex = 0;
-
             // Set the text services so we can query when language changes
             textServiceManager = CoreTextServicesManager.GetForCurrentView();
-            textServiceManager.InputLanguageChanged += TextServiceManager_InputLanguageChanged;
-
             SetDefaultRecognizerByCurrentInputMethodLanguageTag();
 
             // Initialize the InkCanvas
@@ -72,9 +68,16 @@ namespace SDKTemplate
             inkCanvas.InkPresenter.InputDeviceTypes = Windows.UI.Core.CoreInputDeviceTypes.Mouse | Windows.UI.Core.CoreInputDeviceTypes.Pen | Windows.UI.Core.CoreInputDeviceTypes.Touch;
         }
 
-        protected override void OnNavigatedFrom(NavigationEventArgs e)
+        protected override void OnNavigatedTo(NavigationEventArgs e)
+        {
+            // Registering handlers for InputLanguageChanged event
+            textServiceManager.InputLanguageChanged += TextServiceManager_InputLanguageChanged;
+        }
+
+        protected override void OnNavigatingFrom(NavigatingCancelEventArgs e)
         {
             InstallReco.IsOpen = false;
+            textServiceManager.InputLanguageChanged -= TextServiceManager_InputLanguageChanged;
         }
 
         private void OnSizeChanged(object sender, SizeChangedEventArgs e)

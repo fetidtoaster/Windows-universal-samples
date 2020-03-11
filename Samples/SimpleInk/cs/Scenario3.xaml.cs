@@ -12,11 +12,13 @@
 using System;
 using Windows.Foundation;
 using Windows.Storage;
+using Windows.Storage.Pickers;
 using Windows.Storage.Streams;
 using Windows.UI.Core;
 using Windows.UI.Input.Inking;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
+using Windows.UI.Xaml.Navigation;
 
 namespace SDKTemplate
 {
@@ -49,8 +51,20 @@ namespace SDKTemplate
 
             inkCanvas.InkPresenter.UpdateDefaultDrawingAttributes(drawingAttributes);
             inkCanvas.InkPresenter.InputDeviceTypes = CoreInputDeviceTypes.Mouse | CoreInputDeviceTypes.Pen;
+        }
+
+        protected override void OnNavigatedTo(NavigationEventArgs e)
+        {
+            // Registering handlers for when inking or erasing is detected
             inkCanvas.InkPresenter.StrokesCollected += InkPresenter_StrokesCollected;
             inkCanvas.InkPresenter.StrokesErased += InkPresenter_StrokesErased;
+        }
+
+        protected override void OnNavigatingFrom(NavigatingCancelEventArgs e)
+        {
+            // Unregistering handlers for when inking or erasing is detected
+            inkCanvas.InkPresenter.StrokesCollected -= InkPresenter_StrokesCollected;
+            inkCanvas.InkPresenter.StrokesErased -= InkPresenter_StrokesErased;
         }
 
         private void OnSizeChanged(object sender, SizeChangedEventArgs e)
@@ -98,7 +112,7 @@ namespace SDKTemplate
                 }
                 else
                 {
-                    // Otherwise, use a square pen tim.
+                    // Otherwise, use a square pen tip.
                     drawingAttributes.Size = new Size(penSize, penSize);
                 }
                 inkCanvas.InkPresenter.UpdateDefaultDrawingAttributes(drawingAttributes);
@@ -155,7 +169,7 @@ namespace SDKTemplate
                     double radians = 45.0 * Math.PI / 180;
                     drawingAttributes.PenTipTransform = System.Numerics.Matrix3x2.CreateRotation((float)radians);
                 }
-                else if (value == "Windows.UI.Xaml.Controls.TextBlock")
+                else if (value == "Pencil")
                 {
                     if (drawingAttributes.Kind != InkDrawingAttributesKind.Pencil)
                     {
@@ -180,23 +194,28 @@ namespace SDKTemplate
             // We don't want to save an empty file
             if (inkCanvas.InkPresenter.StrokeContainer.GetStrokes().Count > 0)
             {
-                var savePicker = new Windows.Storage.Pickers.FileSavePicker();
-                savePicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary;
-                savePicker.FileTypeChoices.Add("Gif with embedded ISF", new System.Collections.Generic.List<string> { ".gif" });
+                var savePicker = new FileSavePicker();
+                savePicker.SuggestedStartLocation = PickerLocationId.PicturesLibrary;
+                savePicker.FileTypeChoices.Add("Gif with embedded ISF", new[] { ".gif" });
 
-                Windows.Storage.StorageFile file = await savePicker.PickSaveFileAsync();
+                StorageFile file = await savePicker.PickSaveFileAsync();
                 if (null != file)
                 {
                     try
                     {
                         using (IRandomAccessStream stream = await file.OpenAsync(FileAccessMode.ReadWrite))
                         {
+                            // Truncate any existing stream in case the new file
+                            // is smaller than the old file.
+                            stream.Size = 0;
+
                             await inkCanvas.InkPresenter.StrokeContainer.SaveAsync(stream);
                         }
                         rootPage.NotifyUser(inkCanvas.InkPresenter.StrokeContainer.GetStrokes().Count + " stroke(s) saved!", NotifyType.StatusMessage);
                     }
                     catch (Exception ex)
                     {
+                        // Report I/O errors during save.
                         rootPage.NotifyUser(ex.Message, NotifyType.ErrorMessage);
                     }
                 }
@@ -209,26 +228,27 @@ namespace SDKTemplate
 
         async void OnLoadAsync(object sender, RoutedEventArgs e)
         {
-            var openPicker = new Windows.Storage.Pickers.FileOpenPicker();
-            openPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.PicturesLibrary;
+            var openPicker = new FileOpenPicker();
+            openPicker.SuggestedStartLocation = PickerLocationId.PicturesLibrary;
             openPicker.FileTypeFilter.Add(".gif");
             openPicker.FileTypeFilter.Add(".isf");
-            Windows.Storage.StorageFile file = await openPicker.PickSingleFileAsync();
+            StorageFile file = await openPicker.PickSingleFileAsync();
             if (null != file)
             {
-                using (var stream = await file.OpenSequentialReadAsync())
+                try
                 {
-                    try
+                    using (var stream = await file.OpenSequentialReadAsync())
                     {
                         await inkCanvas.InkPresenter.StrokeContainer.LoadAsync(stream);
                     }
-                    catch (Exception ex)
-                    {
-                        rootPage.NotifyUser(ex.Message, NotifyType.ErrorMessage);
-                    }
-                }
 
-                rootPage.NotifyUser(inkCanvas.InkPresenter.StrokeContainer.GetStrokes().Count + " stroke(s) loaded!", NotifyType.StatusMessage);
+                    rootPage.NotifyUser(inkCanvas.InkPresenter.StrokeContainer.GetStrokes().Count + " stroke(s) loaded!", NotifyType.StatusMessage);
+                }
+                catch (Exception ex)
+                {
+                    // Report I/O errors during load.
+                    rootPage.NotifyUser(ex.Message, NotifyType.ErrorMessage);
+                }
             }
         }
 

@@ -15,6 +15,7 @@ using Windows.UI.Input.Inking;
 using Windows.UI.Input.Inking.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
+using Windows.UI.Xaml.Navigation;
 
 namespace SDKTemplate
 {
@@ -43,13 +44,17 @@ namespace SDKTemplate
         {
             this.InitializeComponent();
 
-            InkCanvas.InkPresenter.InputDeviceTypes = Windows.UI.Core.CoreInputDeviceTypes.Mouse | Windows.UI.Core.CoreInputDeviceTypes.Pen;
+            inkCanvas.InkPresenter.InputDeviceTypes = Windows.UI.Core.CoreInputDeviceTypes.Mouse | Windows.UI.Core.CoreInputDeviceTypes.Pen;
 
-            var drawingAttributes = InkCanvas.InkPresenter.CopyDefaultDrawingAttributes();
+            var drawingAttributes = inkCanvas.InkPresenter.CopyDefaultDrawingAttributes();
             drawingAttributes.Size = new Size(penSize, penSize);
-            InkCanvas.InkPresenter.UpdateDefaultDrawingAttributes(drawingAttributes);
+            inkCanvas.InkPresenter.UpdateDefaultDrawingAttributes(drawingAttributes);
+        }
 
-            coreWetStrokeUpdateSource = CoreWetStrokeUpdateSource.Create(InkCanvas.InkPresenter);
+        protected override void OnNavigatedTo(NavigationEventArgs e)
+        {
+            // Registering handlers for Wet Stroke events
+            coreWetStrokeUpdateSource = CoreWetStrokeUpdateSource.Create(inkCanvas.InkPresenter);
             coreWetStrokeUpdateSource.WetStrokeStarting += CoreWetStrokeUpdateSource_WetStrokeStarting;
             coreWetStrokeUpdateSource.WetStrokeContinuing += CoreWetStrokeUpdateSource_WetStrokeContinuing;
             coreWetStrokeUpdateSource.WetStrokeStopping += CoreWetStrokeUpdateSource_WetStrokeStopping;
@@ -57,12 +62,22 @@ namespace SDKTemplate
             coreWetStrokeUpdateSource.WetStrokeCanceled += CoreWetStrokeUpdateSource_WetStrokeCanceled;
         }
 
+        protected override void OnNavigatingFrom(NavigatingCancelEventArgs e)
+        {
+            // Unegistering handlers for Wet Stroke events
+            coreWetStrokeUpdateSource.WetStrokeStarting -= CoreWetStrokeUpdateSource_WetStrokeStarting;
+            coreWetStrokeUpdateSource.WetStrokeContinuing -= CoreWetStrokeUpdateSource_WetStrokeContinuing;
+            coreWetStrokeUpdateSource.WetStrokeStopping -= CoreWetStrokeUpdateSource_WetStrokeStopping;
+            coreWetStrokeUpdateSource.WetStrokeCompleted -= CoreWetStrokeUpdateSource_WetStrokeCompleted;
+            coreWetStrokeUpdateSource.WetStrokeCanceled -= CoreWetStrokeUpdateSource_WetStrokeCanceled;
+        }
+
         private void InkStackPanel_Loaded(object sender, RoutedEventArgs e)
         {
-            InkCanvas.Width = InkStackPanel.ActualWidth;
-            InkCanvas.Height = InkStackPanel.ActualHeight;
+            inkCanvas.Width = InkStackPanel.ActualWidth;
+            inkCanvas.Height = InkStackPanel.ActualHeight;
 
-            circleCenter = new Point(InkCanvas.Width / 2.0f, InkCanvas.Height / 2.0f);
+            circleCenter = new Point(inkCanvas.Width / 2.0f, inkCanvas.Height / 2.0f);
             InkCircle.Center = circleCenter;
             InkCircle.RadiusX = radius;
             InkCircle.RadiusY = radius;

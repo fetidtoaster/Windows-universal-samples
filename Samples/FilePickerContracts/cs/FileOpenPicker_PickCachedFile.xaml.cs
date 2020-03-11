@@ -28,7 +28,7 @@ namespace FilePickerContracts
     /// </summary>
     public sealed partial class FileOpenPicker_PickCachedFile : Page
     {
-        private const string id ="MyCachedFile";
+        private const string id = "MyCachedFile";
         FileOpenPickerUI fileOpenPickerUI = FileOpenPickerPage.Current.fileOpenPickerUI;
         CoreDispatcher dispatcher = Window.Current.Dispatcher;
 
@@ -45,35 +45,16 @@ namespace FilePickerContracts
             RemoveFileButton.IsEnabled = fileInBasket;
         }
 
-        private async void OnFileRemoved(FileOpenPickerUI sender, FileRemovedEventArgs args)
-        {
-            // make sure that the item got removed matches the one we added.
-            if (args.Id == id)
-            {
-                // The event handler may be invoked on a background thread, so use the Dispatcher to run the UI-related code on the UI thread.
-                await dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
-                {
-                    OutputTextBlock.Text = Status.FileRemoved;
-                    UpdateButtonState(false);
-                });
-            }
-        }
-
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             UpdateButtonState(fileOpenPickerUI.ContainsFile(id));
-            fileOpenPickerUI.FileRemoved += new TypedEventHandler<FileOpenPickerUI, FileRemovedEventArgs>(OnFileRemoved);
-        }
-
-        protected override void OnNavigatedFrom(NavigationEventArgs e)
-        {
-            fileOpenPickerUI.FileRemoved -= new TypedEventHandler<FileOpenPickerUI, FileRemovedEventArgs>(OnFileRemoved);
         }
 
         private async void AddFileButton_Click(object sender, RoutedEventArgs e)
         {
-            StorageFile file = await Windows.Storage.ApplicationData.Current.LocalFolder.CreateFileAsync(@"CachedFile.txt", CreationCollisionOption.ReplaceExisting);
+            StorageFile file = await Windows.Storage.ApplicationData.Current.LocalFolder.CreateFileAsync(@"BeforeAccessConflictingFile.txt", CreationCollisionOption.ReplaceExisting);
             await Windows.Storage.FileIO.WriteTextAsync(file, @"Cached file created...");
+            // Note: BeforeAccess triggers CFU activations only for files accessed from the Most Recently Used list and Future Access list.
             CachedFileUpdater.SetUpdateInformation(file, "CachedFile", ReadActivationMode.BeforeAccess, WriteActivationMode.NotNeeded, CachedFileOptions.RequireUpdateOnAccess);
 
             bool inBasket;

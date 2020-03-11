@@ -10,7 +10,6 @@
 //*********************************************************
 
 using System;
-using System.Linq;
 using Windows.Foundation;
 using Windows.UI.Core;
 using Windows.UI.Input.Inking;
@@ -42,7 +41,7 @@ namespace SDKTemplate
             }
 
             inkDrawingAttributes.Size = new Size(strokeWidth, 2.0f * strokeWidth);
-            inkDrawingAttributes.PenTipTransform = System.Numerics.Matrix3x2.CreateRotation(45.0f);
+            inkDrawingAttributes.PenTipTransform = System.Numerics.Matrix3x2.CreateRotation((float)(Math.PI * 45 / 180));
 
             return inkDrawingAttributes;
         }
@@ -57,8 +56,7 @@ namespace SDKTemplate
         private Rect boundingRect;
         private MainPage rootPage = MainPage.Current;
         private bool isBoundRect;
-
-        Symbol CalligraphyPen = (Symbol)0xEDFB;
+        
         Symbol LassoSelect = (Symbol)0xEF20;
         Symbol TouchWriting = (Symbol)0xED5F;
 
@@ -68,10 +66,20 @@ namespace SDKTemplate
 
             // Initialize the InkCanvas
             inkCanvas.InkPresenter.InputDeviceTypes = CoreInputDeviceTypes.Mouse | CoreInputDeviceTypes.Pen;
+        }
 
-            // Handlers to clear the selection when inking or erasing is detected
+        protected override void OnNavigatedTo(NavigationEventArgs e)
+        {
+            // Registering handlers to clear the selection when inking or erasing is detected
             inkCanvas.InkPresenter.StrokeInput.StrokeStarted += StrokeInput_StrokeStarted;
             inkCanvas.InkPresenter.StrokesErased += InkPresenter_StrokesErased;
+        }
+
+        protected override void OnNavigatingFrom(NavigatingCancelEventArgs e)
+        {
+            // Unregistering handlers to clear the selection when inking or erasing is detected
+            inkCanvas.InkPresenter.StrokeInput.StrokeStarted -= StrokeInput_StrokeStarted;
+            inkCanvas.InkPresenter.StrokesErased -= InkPresenter_StrokesErased;
         }
 
         private void StrokeInput_StrokeStarted(InkStrokeInput sender, PointerEventArgs args)

@@ -16,7 +16,9 @@ using namespace SDKTemplate;
 using namespace Platform;
 using namespace Windows::Foundation;
 using namespace Windows::Foundation::Collections;
+using namespace Windows::UI::Core;
 using namespace Windows::UI::Xaml;
+using namespace Windows::UI::Xaml::Automation::Peers;
 using namespace Windows::UI::Xaml::Controls;
 using namespace Windows::UI::Xaml::Controls::Primitives;
 using namespace Windows::UI::Xaml::Data;
@@ -44,19 +46,10 @@ void MainPage::OnNavigatedTo(NavigationEventArgs^ e)
     // Populate the ListBox with the scenarios as defined in SampleConfiguration.cpp.
     auto itemCollection = ref new Platform::Collections::Vector<Object^>();
     int i = 1;
-    for (auto const& s : MainPage::Current->scenarios)
+    for (auto s : MainPage::Current->scenarios)
     {
-        // Create a textBlock to hold the content and apply the ListItemTextStyle from Styles.xaml
-        TextBlock^ textBlock = ref new TextBlock();
-        ListBoxItem^ item = ref new ListBoxItem();
-        auto style = App::Current->Resources->Lookup("ListItemTextStyle");
-
-        textBlock->Text = (i++).ToString() + ") " + s.Title;
-        textBlock->Style = safe_cast<Windows::UI::Xaml::Style ^>(style);
-
-        item->Name = s.ClassName;
-        item->Content = textBlock;
-        itemCollection->Append(item);
+        s.Title = (i++).ToString() + ") " + s.Title;
+        itemCollection->Append(s);
     }
 
     // Set the newly created itemCollection as the ListBox ItemSource.
@@ -80,14 +73,14 @@ void MainPage::OnNavigatedTo(NavigationEventArgs^ e)
 void MainPage::ScenarioControl_SelectionChanged(Object^ sender, SelectionChangedEventArgs^ e)
 {
     ListBox^ scenarioListBox = safe_cast<ListBox^>(sender); //as ListBox;
-    ListBoxItem^ item = dynamic_cast<ListBoxItem^>(scenarioListBox->SelectedItem);
-    if (item != nullptr)
+    if (scenarioListBox->SelectedItem != nullptr)
     {
         // Clear the status block when changing scenarios
         NotifyUser("", NotifyType::StatusMessage);
 
         // Navigate to the selected scenario.
-        TypeName scenarioType = { item->Name, TypeKind::Custom };
+        Scenario s = (Scenario)scenarioListBox->SelectedItem;
+        TypeName scenarioType = { s.ClassName, TypeKind::Custom };
         ScenarioFrame->Navigate(scenarioType, this);
 
         if (Window::Current->Bounds.Width < 640)
@@ -98,6 +91,21 @@ void MainPage::ScenarioControl_SelectionChanged(Object^ sender, SelectionChanged
 }
 
 void MainPage::NotifyUser(String^ strMessage, NotifyType type)
+{
+    if (Dispatcher->HasThreadAccess)
+    {
+        UpdateStatus(strMessage, type);
+    }
+    else
+    {
+        Dispatcher->RunAsync(CoreDispatcherPriority::Normal, ref new DispatchedHandler([strMessage, type, this]()
+        {
+            UpdateStatus(strMessage, type);
+        }));
+    }
+}
+
+void MainPage::UpdateStatus(String^ strMessage, NotifyType type)
 {
     switch (type)
     {
@@ -110,6 +118,7 @@ void MainPage::NotifyUser(String^ strMessage, NotifyType type)
     default:
         break;
     }
+
     StatusBlock->Text = strMessage;
 
     // Collapse the StatusBlock if it has no text to conserve real estate.
@@ -123,6 +132,13 @@ void MainPage::NotifyUser(String^ strMessage, NotifyType type)
         StatusBorder->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
         StatusPanel->Visibility = Windows::UI::Xaml::Visibility::Collapsed;
     }
+
+	// Raise an event if necessary to enable a screen reader to announce the status update.
+	auto peer = dynamic_cast<FrameworkElementAutomationPeer^>(FrameworkElementAutomationPeer::FromElement(StatusBlock));
+	if (peer != nullptr)
+	{
+		peer->RaiseAutomationEvent(AutomationEvents::LiveRegionChanged);
+	}
 }
 
 void MainPage::Footer_Click(Object^ sender, RoutedEventArgs^ e)
